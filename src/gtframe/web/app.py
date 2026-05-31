@@ -258,6 +258,7 @@ def _gather_stats(reporter) -> dict:
         if json_path.exists():
             try:
                 data = json.loads(json_path.read_text(encoding="utf-8"))
+                data["id"] = rep_dir.name
                 recent.append(data)
             except Exception:
                 pass
