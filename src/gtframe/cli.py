@@ -22,6 +22,10 @@ def main():
 
 
 def _run_web():
+    import sys as _sys
+    # Remove the "web" subcommand from argv so argparse doesn't see it
+    _sys.argv = [_sys.argv[0]] + _sys.argv[2:]
+
     import uvicorn
     from gtframe.web.app import app
 
@@ -37,7 +41,7 @@ def _run_web():
             print(f"Config error: {e}", file=sys.stderr)
             sys.exit(1)
 
-    print(f"🌐 gtframe Web UI starting at http://localhost:{args.port}")
+    print(f"[gtframe] Web UI starting at http://localhost:{args.port}")
     print("   Press Ctrl+C to stop")
     uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
 

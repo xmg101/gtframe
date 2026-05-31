@@ -6,10 +6,9 @@ import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException, Request
-from fastapi.responses import HTMLResponse, JSONResponse
+from fastapi import FastAPI, HTTPException
+from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.templating import Jinja2Templates
 from sse_starlette.sse import EventSourceResponse
 
 from gtframe.config import Config
@@ -23,7 +22,17 @@ app = FastAPI(title="gtframe")
 # ── static files & templates ────────────────────────────────────
 HERE = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
-templates = Jinja2Templates(directory=str(HERE / "templates"))
+
+from jinja2 import Environment, FileSystemLoader
+import jinja2
+_templates = jinja2.Environment(
+    loader=FileSystemLoader(str(HERE / "templates")),
+    autoescape=True,
+)
+
+def _render(name: str, **ctx) -> str:
+    """Render a Jinja2 template and return HTML string."""
+    return _templates.get_template(name).render(**ctx)
 
 # ── shared state ────────────────────────────────────────────────
 _device_pool: Optional[DevicePool] = None
@@ -49,63 +58,45 @@ def _ensure_services():
 
 
 @app.get("/", response_class=HTMLResponse)
-async def dashboard(request: Request):
+async def dashboard():
     _, _, reporter = _ensure_services()
     stats = _gather_stats(reporter)
-    return templates.TemplateResponse(
-        "dashboard.html",
-        {"request": request, "active": "dashboard", "stats": stats},
-    )
+    return HTMLResponse(_render("dashboard.html", active="dashboard", stats=stats))
 
 
 @app.get("/run", response_class=HTMLResponse)
-async def run_page(request: Request):
+async def run_page():
     pool, _, _ = _ensure_services()
     cases = _list_cases()
-    return templates.TemplateResponse(
-        "run.html",
-        {"request": request, "active": "run", "cases": cases, "devices": pool.list_devices()},
-    )
+    return HTMLResponse(_render("run.html", active="run", cases=cases, devices=pool.list_devices()))
 
 
 @app.get("/reports", response_class=HTMLResponse)
-async def reports_page(request: Request):
+async def reports_page():
     _, _, reporter = _ensure_services()
     reports = _list_reports(reporter)
-    return templates.TemplateResponse(
-        "reports.html",
-        {"request": request, "active": "reports", "reports": reports},
-    )
+    return HTMLResponse(_render("reports.html", active="reports", reports=reports))
 
 
 @app.get("/reports/{report_id}", response_class=HTMLResponse)
-async def report_detail(request: Request, report_id: str):
+async def report_detail(report_id: str):
     _, _, reporter = _ensure_services()
     report_data = _load_report(reporter, report_id)
     if report_data is None:
         raise HTTPException(status_code=404, detail="Report not found")
-    return templates.TemplateResponse(
-        "report_detail.html",
-        {"request": request, "active": "reports", "report": report_data},
-    )
+    return HTMLResponse(_render("report_detail.html", active="reports", report=report_data))
 
 
 @app.get("/cases", response_class=HTMLResponse)
-async def cases_page(request: Request):
+async def cases_page():
     cases = _list_cases()
-    return templates.TemplateResponse(
-        "cases.html",
-        {"request": request, "active": "cases", "cases": cases},
-    )
+    return HTMLResponse(_render("cases.html", active="cases", cases=cases))
 
 
 @app.get("/devices", response_class=HTMLResponse)
-async def devices_page(request: Request):
+async def devices_page():
     pool, _, _ = _ensure_services()
-    return templates.TemplateResponse(
-        "devices.html",
-        {"request": request, "active": "devices", "devices": pool.list_devices()},
-    )
+    return HTMLResponse(_render("devices.html", active="devices", devices=pool.list_devices()))
 
 
 # ── API routes ─────────────────────────────────────────────────
@@ -178,12 +169,10 @@ async def api_run(data: dict):
 
 
 @app.get("/api/run/{run_id}/log")
-async def api_run_log(request: Request, run_id: str):
+async def api_run_log(run_id: str):
     async def event_generator():
         last_index = 0
         while True:
-            if await request.is_disconnected():
-                break
             logs = _run_logs.get(run_id, [])
             while last_index < len(logs):
                 yield {"data": logs[last_index]}
