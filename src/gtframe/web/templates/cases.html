@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+{% block title %}用例管理 - gtframe{% endblock %}
+{% block content %}
+<h1 class="section-title">📝 用例管理</h1>
+
+<div style="display:flex;gap:8px;margin-bottom:16px">
+    <input class="form-control" id="caseSearch" placeholder="🔍 搜索用例..." style="max-width:300px" oninput="filterCaseList(this.value)">
+    <button class="btn btn-primary" onclick="showNewCaseEditor()">＋ 新建用例</button>
+</div>
+
+<div id="caseList">
+    {% for c in cases %}
+    <div class="item-row case-item" data-name="{{ c.name|lower }}">
+        <div class="item-info">
+            <div class="item-title">{{ c.name }}</div>
+            <div class="item-meta">{{ c.steps }} 步</div>
+        </div>
+        <div class="item-actions">
+            <button class="btn btn-sm" style="background:#f0f0f0" onclick="editCase('{{ c.name }}')">✏️ 编辑</button>
+            <button class="btn btn-sm btn-danger" onclick="deleteCase('{{ c.name }}')">🗑️ 删除</button>
+        </div>
+    </div>
+    {% endfor %}
+</div>
+
+<!-- Inline editor modal -->
+<div id="editorModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.4);z-index:200;align-items:center;justify-content:center">
+    <div style="background:#fff;border-radius:12px;width:700px;max-width:90vw;max-height:80vh;padding:20px;overflow-y:auto">
+        <div style="display:flex;justify-content:space-between;margin-bottom:12px">
+            <h3 id="editorTitle" style="margin:0">编辑用例</h3>
+            <button onclick="closeEditor()" style="background:none;border:none;font-size:20px;cursor:pointer">✕</button>
+        </div>
+        <div class="form-group">
+            <label>用例名称 (不含 .yaml)</label>
+            <input class="form-control" id="editorName" placeholder="my_test_case">
+        </div>
+        <div class="form-group">
+            <label>YAML 内容</label>
+            <textarea class="form-control" id="editorContent" rows="15" style="font-family:monospace;font-size:13px"></textarea>
+        </div>
+        <div style="display:flex;gap:8px;justify-content:flex-end">
+            <button class="btn" style="background:#f0f0f0" onclick="closeEditor()">取消</button>
+            <button class="btn btn-success" onclick="saveCase()">💾 保存</button>
+        </div>
+    </div>
+</div>
+
+<script>
+function filterCaseList(query) {
+    const q = query.toLowerCase();
+    document.querySelectorAll('.case-item').forEach(item => {
+        item.style.display = item.dataset.name.includes(q) ? 'flex' : 'none';
+    });
+}
+
+function showNewCaseEditor() {
+    document.getElementById('editorTitle').textContent = '新建用例';
+    document.getElementById('editorName').value = '';
+    document.getElementById('editorContent').value = 'name: my_new_case\ngame: \ndevice: \nsteps:\n  - action: wait_for_screen\n    target: \n    timeout: 10\n';
+    document.getElementById('editorModal').style.display = 'flex';
+}
+
+function editCase(name) {
+    document.getElementById('editorTitle').textContent = '编辑: ' + name;
+    document.getElementById('editorName').value = name;
+    fetch('/api/cases/' + name)
+        .then(r => r.json())
+        .then(data => {
+            document.getElementById('editorContent').value = data.content;
+            document.getElementById('editorModal').style.display = 'flex';
+        });
+}
+
+function closeEditor() {
+    document.getElementById('editorModal').style.display = 'none';
+}
+
+async function saveCase() {
+    const name = document.getElementById('editorName').value.trim();
+    const content = document.getElementById('editorContent').value.trim();
+    if (!name || !content) { alert('名称和内容不能为空'); return; }
+    const resp = await fetch('/api/cases', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({name, content})
+    });
+    if (resp.ok) {
+        closeEditor();
+        location.reload();
+    } else {
+        alert('保存失败');
+    }
+}
+
+async function deleteCase(name) {
+    if (!confirm('确定删除用例 "' + name + '" 吗？')) return;
+    const resp = await fetch('/api/cases/' + name, {method: 'DELETE'});
+    if (resp.ok) location.reload();
+    else alert('删除失败');
+}
+</script>
+{% endblock %}
