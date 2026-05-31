@@ -12,7 +12,7 @@
             </div>
             <div id="caseList" style="max-height:240px;overflow-y:auto">
                 {% for c in cases %}
-                <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:6px;hover:background:#f5f5f5"
+                <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:6px"
                        onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
                     <input type="checkbox" class="case-checkbox" value="{{ c.name }}" onchange="updateRunButton()">
                     <span style="font-size:14px">{{ c.name }}</span>

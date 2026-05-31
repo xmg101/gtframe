@@ -1,18 +1,19 @@
 # src/gtframe/web/app.py
 import asyncio
 import json
-import time
+import re
 import uuid
 from pathlib import Path
 from typing import Optional
 
-from fastapi import FastAPI, HTTPException
+from fastapi import FastAPI, HTTPException, Request
 from fastapi.responses import HTMLResponse, FileResponse
 from fastapi.staticfiles import StaticFiles
 from sse_starlette.sse import EventSourceResponse
 
 from gtframe.config import Config
 from gtframe.device.device_pool import DevicePool
+from gtframe.orchestrator.context import StepContext
 from gtframe.orchestrator.test_runner import TestRunner
 from gtframe.report.reporter import Reporter
 from gtframe.vision.engine import VisionEngine
@@ -23,16 +24,16 @@ app = FastAPI(title="gtframe")
 HERE = Path(__file__).parent
 app.mount("/static", StaticFiles(directory=str(HERE / "static")), name="static")
 
-from jinja2 import Environment, FileSystemLoader
 import jinja2
 _templates = jinja2.Environment(
-    loader=FileSystemLoader(str(HERE / "templates")),
+    loader=jinja2.FileSystemLoader(str(HERE / "templates")),
     autoescape=True,
 )
 
+
 def _render(name: str, **ctx) -> str:
-    """Render a Jinja2 template and return HTML string."""
     return _templates.get_template(name).render(**ctx)
+
 
 # ── shared state ────────────────────────────────────────────────
 _device_pool: Optional[DevicePool] = None
@@ -40,7 +41,7 @@ _vision: Optional[VisionEngine] = None
 _reporter: Optional[Reporter] = None
 _run_tasks: dict[str, asyncio.Task] = {}
 _run_logs: dict[str, list[str]] = {}
-_run_results: dict[str, list] = {}
+_run_lock: asyncio.Lock = asyncio.Lock()
 
 
 def _ensure_services():
@@ -54,13 +55,21 @@ def _ensure_services():
     return _device_pool, _vision, _reporter
 
 
+def _cases_dir() -> Path:
+    return Path(Config.get().cases_dir or "cases")
+
+
+def _reports_dir() -> Path:
+    return Path(Config.get().report_dir or "reports")
+
+
 # ── page routes ─────────────────────────────────────────────────
 
 
 @app.get("/", response_class=HTMLResponse)
 async def dashboard():
     _, _, reporter = _ensure_services()
-    stats = _gather_stats(reporter)
+    stats = _gather_stats()
     return HTMLResponse(_render("dashboard.html", active="dashboard", stats=stats))
 
 
@@ -73,15 +82,15 @@ async def run_page():
 
 @app.get("/reports", response_class=HTMLResponse)
 async def reports_page():
-    _, _, reporter = _ensure_services()
-    reports = _list_reports(reporter)
+    _, _, _ = _ensure_services()
+    reports = _list_reports()
     return HTMLResponse(_render("reports.html", active="reports", reports=reports))
 
 
 @app.get("/reports/{report_id}", response_class=HTMLResponse)
 async def report_detail(report_id: str):
-    _, _, reporter = _ensure_services()
-    report_data = _load_report(reporter, report_id)
+    _, _, _ = _ensure_services()
+    report_data = _load_report(report_id)
     if report_data is None:
         raise HTTPException(status_code=404, detail="Report not found")
     return HTMLResponse(_render("report_detail.html", active="reports", report=report_data))
@@ -104,8 +113,7 @@ async def devices_page():
 
 @app.get("/api/stats")
 async def api_stats():
-    _, _, reporter = _ensure_services()
-    return _gather_stats(reporter)
+    return _gather_stats()
 
 
 @app.get("/api/devices")
@@ -128,8 +136,8 @@ async def api_cases():
 
 @app.get("/api/cases/{case_name}")
 async def api_case_detail(case_name: str):
-    cases_dir = Config.get().cases_dir or "cases"
-    for yaml_path in sorted(Path(cases_dir).rglob("*.yaml")):
+    cases_dir = _cases_dir()
+    for yaml_path in sorted(cases_dir.rglob("*.yaml")):
         if yaml_path.stem == case_name:
             content = yaml_path.read_text(encoding="utf-8")
             return {"name": case_name, "content": content}
@@ -138,8 +146,8 @@ async def api_case_detail(case_name: str):
 
 @app.delete("/api/cases/{case_name}")
 async def api_case_delete(case_name: str):
-    cases_dir = Config.get().cases_dir or "cases"
-    for yaml_path in sorted(Path(cases_dir).rglob("*.yaml")):
+    cases_dir = _cases_dir()
+    for yaml_path in sorted(cases_dir.rglob("*.yaml")):
         if yaml_path.stem == case_name:
             yaml_path.unlink()
             return {"deleted": case_name}
@@ -148,12 +156,17 @@ async def api_case_delete(case_name: str):
 
 @app.post("/api/cases")
 async def api_case_save(data: dict):
-    cases_dir = Config.get().cases_dir or "cases"
+    cases_dir = _cases_dir()
     name = data.get("name", "").strip()
     content = data.get("content", "").strip()
     if not name or not content:
         raise HTTPException(status_code=400, detail="name and content required")
-    path = Path(cases_dir) / f"{name}.yaml"
+    if not re.match(r"^[a-zA-Z0-9_\-]+$", name):
+        raise HTTPException(status_code=400, detail="Invalid case name (use letters, digits, _, -)")
+    # Resolve and verify within cases_dir
+    path = (cases_dir / f"{name}.yaml").resolve()
+    if not str(path).startswith(str(cases_dir.resolve())):
+        raise HTTPException(status_code=400, detail="Invalid case name")
     path.write_text(content, encoding="utf-8")
     return {"saved": name}
 
@@ -162,17 +175,18 @@ async def api_case_save(data: dict):
 async def api_run(data: dict):
     run_id = str(uuid.uuid4())[:8]
     _run_logs[run_id] = []
-    _run_results[run_id] = []
     task = asyncio.create_task(_execute_run(run_id, data))
     _run_tasks[run_id] = task
     return {"run_id": run_id}
 
 
 @app.get("/api/run/{run_id}/log")
-async def api_run_log(run_id: str):
+async def api_run_log(request: Request, run_id: str):
     async def event_generator():
         last_index = 0
         while True:
+            if await request.is_disconnected():
+                break
             logs = _run_logs.get(run_id, [])
             while last_index < len(logs):
                 yield {"data": logs[last_index]}
@@ -187,14 +201,12 @@ async def api_run_log(run_id: str):
 
 @app.get("/api/reports")
 async def api_reports():
-    _, _, reporter = _ensure_services()
-    return {"reports": _list_reports(reporter)}
+    return {"reports": _list_reports()}
 
 
 @app.get("/api/reports/{report_id}")
 async def api_report_detail(report_id: str):
-    _, _, reporter = _ensure_services()
-    data = _load_report(reporter, report_id)
+    data = _load_report(report_id)
     if data is None:
         raise HTTPException(status_code=404, detail="Report not found")
     return data
@@ -202,13 +214,12 @@ async def api_report_detail(report_id: str):
 
 @app.get("/api/reports/{report_id}/screenshot/{step_index}")
 async def api_report_screenshot(report_id: str, step_index: int):
-    report_dir = Path(Config.get().report_dir or "reports") / report_id
+    report_dir = _reports_dir() / report_id
     if not report_dir.exists():
         raise HTTPException(status_code=404, detail="Report not found")
     screenshots = sorted(report_dir.glob("step_*.png"))
     if step_index < 0 or step_index >= len(screenshots):
         raise HTTPException(status_code=404, detail="Screenshot not found")
-    from fastapi.responses import FileResponse
     return FileResponse(str(screenshots[step_index]), media_type="image/png")
 
 
@@ -216,9 +227,9 @@ async def api_report_screenshot(report_id: str, step_index: int):
 
 
 def _list_cases() -> list[dict]:
-    cases_dir = Config.get().cases_dir or "cases"
+    cases_dir = _cases_dir()
     cases = []
-    for yaml_path in sorted(Path(cases_dir).rglob("*.yaml")):
+    for yaml_path in sorted(cases_dir.rglob("*.yaml")):
         if yaml_path.name.startswith("_") or "_archived" in yaml_path.parts:
             continue
         cases.append({
@@ -238,9 +249,9 @@ def _count_steps(path: Path) -> int:
         return 0
 
 
-def _gather_stats(reporter) -> dict:
+def _gather_stats() -> dict:
     cases = _list_cases()
-    reports_dir = Path(Config.get().report_dir or "reports")
+    reports_dir = _reports_dir()
     recent = []
     for rep_dir in sorted(reports_dir.iterdir()):
         json_path = rep_dir / "report.json"
@@ -252,24 +263,21 @@ def _gather_stats(reporter) -> dict:
             except Exception:
                 pass
     recent = recent[-10:]
-    passed = sum(1 for r in recent if r.get("status") == "PASS")
-    total = len(recent)
-    pass_rate = round((passed / total * 100) if total else 0)
 
     pool, _, _ = _ensure_services()
     devices = pool.list_devices()
 
     return {
         "total_cases": len(cases),
-        "today_runs": total,
-        "pass_rate": pass_rate,
+        "recent_runs": len(recent),
+        "pass_rate": round((sum(1 for r in recent if r.get("status") == "PASS") / len(recent) * 100) if recent else 0),
         "online_devices": len(devices),
         "recent": recent,
     }
 
 
-def _list_reports(reporter) -> list[dict]:
-    reports_dir = Path(Config.get().report_dir or "reports")
+def _list_reports() -> list[dict]:
+    reports_dir = _reports_dir()
     reports = []
     for rep_dir in sorted(reports_dir.iterdir(), reverse=True):
         json_path = rep_dir / "report.json"
@@ -283,8 +291,8 @@ def _list_reports(reporter) -> list[dict]:
     return reports
 
 
-def _load_report(reporter, report_id: str) -> Optional[dict]:
-    report_dir = Path(Config.get().report_dir or "reports") / report_id
+def _load_report(report_id: str) -> Optional[dict]:
+    report_dir = _reports_dir() / report_id
     json_path = report_dir / "report.json"
     if not json_path.exists():
         return None
@@ -305,48 +313,52 @@ async def _execute_run(run_id: str, data: dict):
     logs.append(json.dumps({"type": "info", "msg": f"Starting run {run_id}"}))
 
     try:
-        if device_name not in pool.list_devices():
-            found = pool.auto_discover()
-            if not found:
-                logs.append(json.dumps({"type": "fail", "msg": "No devices available"}))
-                return
+        async with _run_lock:
+            if device_name not in pool.list_devices():
+                found = pool.auto_discover()
+                if not found:
+                    logs.append(json.dumps({"type": "fail", "msg": "No devices available"}))
+                    return
 
-        runner = TestRunner(pool, vision)
-        all_results = []
-        for case_name in case_names:
-            logs.append(json.dumps({"type": "info", "msg": f"Running: {case_name}"}))
-            case_path = _find_case_yaml(case_name)
-            if not case_path:
-                logs.append(json.dumps({"type": "fail", "msg": f"Case not found: {case_name}"}))
-                continue
-            results = runner.run_file(str(case_path))
-            passed = sum(1 for r in results if r.passed)
-            for r in results:
-                logs.append(json.dumps({
-                    "type": "pass" if r.passed else "fail",
-                    "step": r.step.action,
-                    "target": r.step.target,
-                    "duration": round(r.duration, 2),
-                    "error": r.error,
-                }))
-            logs.append(json.dumps({"type": "summary", "passed": passed, "total": len(results)}))
-            all_results.extend(results)
+            runner = TestRunner(pool, vision)
+            all_results = []
+            start_time = __import__("time").time()
 
-        passed_total = sum(1 for r in all_results if r.passed)
-        logs.append(json.dumps({
-            "type": "done",
-            "passed": passed_total,
-            "total": len(all_results),
-        }))
+            for case_name in case_names:
+                logs.append(json.dumps({"type": "info", "msg": f"Running: {case_name}"}))
+                case_path = _find_case_yaml(case_name)
+                if not case_path:
+                    logs.append(json.dumps({"type": "fail", "msg": f"Case not found: {case_name}"}))
+                    continue
+
+                # Run in thread pool to avoid blocking the event loop
+                results = await asyncio.to_thread(runner.run_file, str(case_path))
+                passed = sum(1 for r in results if r.passed)
+
+                for r in results:
+                    logs.append(json.dumps({
+                        "type": "pass" if r.passed else "fail",
+                        "step": r.step.action,
+                        "target": r.step.target,
+                        "duration": round(r.duration, 2),
+                        "error": r.error,
+                    }))
+                logs.append(json.dumps({"type": "summary", "passed": passed, "total": len(results)}))
+                all_results.extend(results)
+
+            passed_total = sum(1 for r in all_results if r.passed)
+            logs.append(json.dumps({
+                "type": "done",
+                "passed": passed_total,
+                "total": len(all_results),
+            }))
     except Exception as e:
         logs.append(json.dumps({"type": "fail", "msg": str(e)}))
-    finally:
-        _run_results[run_id] = all_results if 'all_results' in dir() else []
 
 
 def _find_case_yaml(name: str) -> Optional[Path]:
-    cases_dir = Config.get().cases_dir or "cases"
-    for yaml_path in Path(cases_dir).rglob("*.yaml"):
+    cases_dir = _cases_dir()
+    for yaml_path in cases_dir.rglob("*.yaml"):
         if yaml_path.stem == name and not yaml_path.name.startswith("_"):
             return yaml_path
     return None
