@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{% block title %}gtframe{% endblock %}</title>
+    <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+<div class="app-container">
+    <nav class="sidebar">
+        <div class="sidebar-header">
+            <span class="sidebar-logo">🎮 gtframe</span>
+        </div>
+        <ul class="sidebar-nav">
+            <li><a href="/" class="{% if active == 'dashboard' %}active{% endif %}">📊 仪表盘</a></li>
+            <li><a href="/run" class="{% if active == 'run' %}active{% endif %}">▶ 运行测试</a></li>
+            <li><a href="/reports" class="{% if active == 'reports' %}active{% endif %}">📋 测试报告</a></li>
+            <li><a href="/cases" class="{% if active == 'cases' %}active{% endif %}">📝 用例管理</a></li>
+            <li><a href="/devices" class="{% if active == 'devices' %}active{% endif %}">📱 设备管理</a></li>
+        </ul>
+        <div class="sidebar-footer">
+            <span class="sidebar-version">v0.1.0</span>
+        </div>
+    </nav>
+    <main class="content">
+        {% block content %}{% endblock %}
+    </main>
+</div>
+<script src="/static/script.js"></script>
+</body>
+</html>
