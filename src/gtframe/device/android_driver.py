@@ -66,20 +66,32 @@ class AndroidDriver(BaseDriver):
     # ── lifecycle ───────────────────────────────────────────────
 
     def connect(self) -> bool:
-        """Verify the device is visible in adb devices."""
+        """Verify the device is visible in adb devices.
+
+        If device_id is set, check for that specific device.
+        If not set, auto-select the first connected device.
+        """
         output = self._adb("devices")
+        first_device = None
         for line in output.splitlines():
-            # Skip header and empty lines
             if "List of devices" in line or not line.strip():
                 continue
             parts = line.strip().split()
-            if len(parts) >= 2 and parts[0] == self.device_id:
-                if parts[1] == "device":
+            if len(parts) >= 2 and parts[1] == "device":
+                # Device found
+                if self.device_id and parts[0] == self.device_id:
                     self._connected = True
                     return True
+                if not self.device_id and first_device is None:
+                    first_device = parts[0]
+
+        if first_device:
+            self.device_id = first_device
+            self._connected = True
+            return True
 
         raise DeviceNotConnectedError(
-            f"Device {self.device_id} not found in adb devices"
+            f"Device {self.device_id or '(any)'} not found in adb devices"
         )
 
     def disconnect(self) -> None:

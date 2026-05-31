@@ -26,6 +26,12 @@ def driver():
     return AndroidDriver(device_id="emulator-5554")
 
 
+@pytest.fixture
+def auto_driver():
+    """Driver without device_id — should auto-discover."""
+    return AndroidDriver()
+
+
 # ---------------------------------------------------------------------------
 # _adb helper
 # ---------------------------------------------------------------------------
@@ -86,7 +92,7 @@ def test_connect_device_found(mock_subprocess, driver):
 
 
 def test_connect_device_not_found(mock_subprocess, driver):
-    """connect() should raise DeviceNotConnectedError when device not listed."""
+    """connect() should raise DeviceNotConnectedError when specific device not listed."""
     mock_process = MagicMock()
     mock_process.returncode = 0
     mock_process.stdout = "List of devices attached\n\n"
@@ -95,6 +101,21 @@ def test_connect_device_not_found(mock_subprocess, driver):
     with pytest.raises(DeviceNotConnectedError):
         driver.connect()
     assert driver.is_connected() is False
+
+
+def test_connect_auto_discover(mock_subprocess, auto_driver):
+    """connect() without device_id should pick the first available device."""
+    mock_process = MagicMock()
+    mock_process.returncode = 0
+    mock_process.stdout = (
+        "List of devices attached\n"
+        "0123456789abcdef\tdevice\n"
+    )
+    mock_subprocess.run.return_value = mock_process
+
+    assert auto_driver.connect() is True
+    assert auto_driver.is_connected() is True
+    assert auto_driver.device_id == "0123456789abcdef"
 
 
 # ---------------------------------------------------------------------------
