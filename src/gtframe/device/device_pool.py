@@ -40,27 +40,32 @@ class DevicePool:
     def auto_discover(self) -> dict[str, str]:
         """Auto-discover available devices.
 
+        Automatically registers discovered drivers into the pool.
         Returns dict mapping device name → device type string.
-        Currently only ADB detection is implemented.
         """
         found: dict[str, str] = {}
+
+        # Android ADB
         try:
             from gtframe.device.android_driver import AndroidDriver
 
             d = AndroidDriver()
-            d.connect()
-            d.disconnect()
-            found["android_01"] = "android"
+            if d.connect():
+                name = f"android_{d.device_id}"
+                self._drivers[name] = d
+                found[name] = "android"
         except Exception:
             pass
 
+        # iOS WDA
         try:
             from gtframe.device.ios_driver import iOSDriver
 
             d = iOSDriver()
-            d.connect()
-            d.disconnect()
-            found["ios_01"] = "ios"
+            if d.connect():
+                name = "ios_01"
+                self._drivers[name] = d
+                found[name] = "ios"
         except Exception:
             pass
 
