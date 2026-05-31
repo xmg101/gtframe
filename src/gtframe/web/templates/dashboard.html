@@ -1,0 +1,56 @@
+{% extends "base.html" %}
+{% block title %}仪表盘 - gtframe{% endblock %}
+{% block content %}
+<h1 class="section-title">📊 仪表盘</h1>
+
+<div class="card-grid">
+    <div class="stat-card">
+        <div class="stat-label">用例总数</div>
+        <div class="stat-value blue">{{ stats.total_cases }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">今日执行</div>
+        <div class="stat-value blue">{{ stats.today_runs }}</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">通过率</div>
+        <div class="stat-value green">{{ stats.pass_rate }}%</div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-label">设备在线</div>
+        <div class="stat-value green">{{ stats.online_devices }}</div>
+    </div>
+</div>
+
+<div style="display:flex;gap:20px;flex-wrap:wrap">
+    <div style="flex:1;min-width:260px">
+        <div class="card">
+            <div class="section-title">⚡ 快速操作</div>
+            <a href="/run" class="btn btn-success" style="width:100%;text-align:center;margin-bottom:8px">▶ 运行测试</a>
+            <a href="/reports" class="btn btn-primary" style="width:100%;text-align:center;margin-bottom:8px">📋 查看报告</a>
+            <a href="/devices" class="btn btn-sm" style="width:100%;text-align:center;border:1px solid #ddd;color:#555;background:#fff">🔄 刷新设备</a>
+        </div>
+    </div>
+    <div style="flex:2;min-width:300px">
+        <div class="card">
+            <div class="section-title">📋 最近执行</div>
+            {% if stats.recent %}
+            <div class="item-list">
+                {% for r in stats.recent %}
+                <div class="item-row" onclick="window.location='/reports/{{r.id}}'" style="cursor:pointer">
+                    <div class="status-dot {{ 'pass' if r.status == 'PASS' else 'fail' }}"></div>
+                    <div class="item-info">
+                        <div class="item-title">{{ r.name }}</div>
+                        <div class="item-meta">{{ r.passed }}/{{ r.total }} 通过 · {{ r.elapsed }}s</div>
+                    </div>
+                    <span class="badge {{ 'badge-pass' if r.status == 'PASS' else 'badge-fail' }}">{{ r.status }}</span>
+                </div>
+                {% endfor %}
+            </div>
+            {% else %}
+            <p style="color:#999;font-size:14px">暂无执行记录</p>
+            {% endif %}
+        </div>
+    </div>
+</div>
+{% endblock %}
