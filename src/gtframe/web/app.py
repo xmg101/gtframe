@@ -132,7 +132,21 @@ async def api_devices_scan():
 @app.get("/api/devices/diagnose")
 async def api_devices_diagnose():
     pool, _, _ = _ensure_services()
-    return {"diagnoses": pool.diagnose_discovery()}
+    diagnoses = pool.diagnose_discovery()
+    # Check if install action is possible
+    import shutil
+    can_install = shutil.which("adb") is None
+    return {"diagnoses": diagnoses, "can_install_adb": can_install}
+
+
+@app.post("/api/devices/install-adb")
+async def api_devices_install_adb():
+    pool, _, _ = _ensure_services()
+    try:
+        result = await _install_adb()
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=str(e))
 
 
 @app.get("/api/cases")
@@ -368,3 +382,80 @@ def _find_case_yaml(name: str) -> Optional[Path]:
         if yaml_path.stem == name and not yaml_path.name.startswith("_"):
             return yaml_path
     return None
+
+
+async def _install_adb() -> dict:
+    """Download and install ADB on Windows."""
+    import os
+    import shutil
+    import subprocess
+    import tempfile
+    import zipfile
+
+    import httpx
+
+    # Windows platform-tools download URL
+    url = "https://dl.google.com/android/repository/platform-tools-latest-windows.zip"
+    install_dir = os.path.expanduser("~/.gtframe/platform-tools")
+
+    # Create temp dir for download
+    tmp = tempfile.mktemp(suffix=".zip")
+
+    try:
+        async with httpx.AsyncClient(follow_redirects=True, timeout=120) as client:
+            response = await client.get(url)
+            response.raise_for_status()
+            with open(tmp, "wb") as f:
+                f.write(response.content)
+
+        # Extract
+        os.makedirs(install_dir, exist_ok=True)
+        with zipfile.ZipFile(tmp, "r") as zf:
+            zf.extractall(install_dir)
+
+        # Find adb.exe
+        adb_path = None
+        for root, _dirs, files in os.walk(install_dir):
+            if "adb.exe" in files:
+                adb_path = os.path.join(root, "adb.exe")
+                break
+
+        if not adb_path:
+            return {"success": False, "message": "下载完成但未找到 adb.exe"}
+
+        # Add to PATH for this session + future
+        adb_dir = os.path.dirname(adb_path)
+        os.environ["PATH"] = adb_dir + os.pathsep + os.environ.get("PATH", "")
+
+        # Also add to user PATH permanently via registry
+        try:
+            import winreg
+            key = winreg.OpenKey(
+                winreg.HKEY_CURRENT_USER,
+                "Environment",
+                0,
+                winreg.KEY_SET_VALUE | winreg.KEY_READ,
+            )
+            current_path = winreg.QueryValueEx(key, "PATH")[0] or ""
+            if adb_dir not in current_path:
+                new_path = adb_dir + ";" + current_path
+                winreg.SetValueEx(key, "PATH", 0, winreg.REG_EXPAND_SZ, new_path)
+                winreg.CloseKey(key)
+                # Notify system
+                subprocess.run(
+                    "setx PATH \"" + new_path + "\"",
+                    shell=True, capture_output=True, timeout=10,
+                )
+        except Exception:
+            pass  # PATH update is a best-effort
+
+        return {
+            "success": True,
+            "message": f"ADB 已安装到 {adb_path}",
+            "adb_path": adb_path,
+        }
+    except Exception as e:
+        return {"success": False, "message": f"安装失败: {e}"}
+    finally:
+        if os.path.exists(tmp):
+            os.unlink(tmp)

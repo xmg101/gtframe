@@ -57,6 +57,7 @@ async function diagnoseDevices() {
         const resp = await fetch('/api/devices/diagnose');
         const data = await resp.json();
         const diagnoses = data.diagnoses || {};
+        const canInstall = data.can_install_adb;
         let html = '<div class="card"><div class="section-title">🔍 环境诊断结果</div>';
         for (const [platform, msg] of Object.entries(diagnoses)) {
             const isOk = msg === 'ok';
@@ -65,8 +66,13 @@ async function diagnoseDevices() {
             html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0">';
             html += `<span style="color:${color};font-weight:bold">${icon} ${platform}</span>`;
             if (!isOk) html += `<p style="font-size:13px;color:#666;margin-top:4px">${msg}</p>`;
+            // Show install button if ADB is missing
+            if (!isOk && platform === 'android' && canInstall) {
+                html += `<button class="btn btn-sm btn-success" style="margin-top:6px" onclick="installAdb(this)">⬇ 一键安装 ADB</button>`;
+            }
             html += '</div>';
         }
+        html += '<div id="installProgress" style="display:none;margin-top:8px"></div>';
         html += '<p style="font-size:12px;color:#999;margin-top:8px">检测结果仅供参考，如果已安装 ADB 但未识别，请确认环境变量 PATH 配置正确。</p>';
         html += '</div>';
         panel.innerHTML = html;
@@ -75,6 +81,32 @@ async function diagnoseDevices() {
     }
     btn.disabled = false;
     btn.textContent = '🔍 检测环境';
+}
+
+async function installAdb(btn) {
+    btn.disabled = true;
+    btn.textContent = '⏳ 下载安装中...';
+    const progress = document.getElementById('installProgress');
+    progress.style.display = 'block';
+    progress.innerHTML = '<p style="font-size:13px;color:#666">正在从 Google 下载 platform-tools（约 10MB），请稍候...</p>';
+    try {
+        const resp = await fetch('/api/devices/install-adb', {method: 'POST'});
+        const result = await resp.json();
+        if (result.success) {
+            progress.innerHTML = `<p style="color:#27ae60;font-size:13px">✅ ${result.message}</p>`;
+            btn.textContent = '✅ 已安装';
+            // Refresh after short delay to pick up ADB
+            setTimeout(() => location.reload(), 1500);
+        } else {
+            progress.innerHTML = `<p style="color:#e74c3c;font-size:13px">❌ ${result.message}</p>`;
+            btn.disabled = false;
+            btn.textContent = '⬇ 一键安装 ADB';
+        }
+    } catch(e) {
+        progress.innerHTML = `<p style="color:#e74c3c;font-size:13px">❌ 安装失败: ${e.message}</p>`;
+        btn.disabled = false;
+        btn.textContent = '⬇ 一键安装 ADB';
+    }
 }
 </script>
 {% endblock %}
