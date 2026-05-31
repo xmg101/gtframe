@@ -1,0 +1,48 @@
+{% extends "base.html" %}
+{% block title %}{{ report.name }} - gtframe{% endblock %}
+{% block content %}
+<a href="/reports" style="color:#3498db;text-decoration:none;font-size:14px">← 返回报告列表</a>
+
+<div style="display:flex;justify-content:space-between;align-items:center;margin:12px 0">
+    <h1 class="section-title" style="margin:0">{{ report.name }}</h1>
+    <span class="badge {{ 'badge-pass' if report.status == 'PASS' else 'badge-fail' }}" style="font-size:14px;padding:4px 16px">{{ report.status }}</span>
+</div>
+<p style="color:#999;font-size:13px;margin-bottom:16px">
+    设备: {{ report.device }} · 耗时: {{ report.elapsed }}s · 通过: {{ report.passed }}/{{ report.total }}
+</p>
+
+<div class="card">
+    {% for step in report.steps %}
+    <div style="padding:12px 0;border-bottom:1px solid #f0f0f0;{% if loop.last %}border:none{% endif %}">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+            <div>
+                <strong>#{{ step.index }}</strong> {{ step.action }}
+                {% if step.target %}<span style="color:#999;font-size:13px"> → {{ step.target }}</span>{% endif %}
+            </div>
+            <div>
+                <span class="badge {{ 'badge-pass' if step.passed else 'badge-fail' }}">{{ 'PASS' if step.passed else 'FAIL' }}</span>
+                <span style="color:#999;font-size:12px;margin-left:8px">{{ step.duration }}s</span>
+            </div>
+        </div>
+        {% if step.description %}
+        <p style="font-size:13px;color:#666;margin-top:4px">{{ step.description }}</p>
+        {% endif %}
+        {% if step.error %}
+        <pre style="background:#fff3f3;padding:8px;border-radius:6px;color:#e74c3c;font-size:12px;margin-top:6px">{{ step.error }}</pre>
+        {% endif %}
+        {% if step.ai_response %}
+        <details style="margin-top:6px">
+            <summary style="font-size:12px;color:#3498db;cursor:pointer">AI 评语</summary>
+            <pre style="background:#f5f5f5;padding:8px;border-radius:6px;font-size:12px;margin-top:4px">{{ step.ai_response | tojson(indent=2) }}</pre>
+        </details>
+        {% endif %}
+        {% if step.screenshot %}
+        <details style="margin-top:6px">
+            <summary style="font-size:12px;color:#3498db;cursor:pointer">查看截图</summary>
+            <img src="/api/reports/{{ report.id }}/screenshot/{{ step.index }}" style="max-width:320px;border:1px solid #ddd;border-radius:6px;margin-top:4px">
+        </details>
+        {% endif %}
+    </div>
+    {% endfor %}
+</div>
+{% endblock %}

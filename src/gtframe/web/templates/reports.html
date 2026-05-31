@@ -1,0 +1,42 @@
+{% extends "base.html" %}
+{% block title %}测试报告 - gtframe{% endblock %}
+{% block content %}
+<h1 class="section-title">📋 测试报告</h1>
+
+<div class="card">
+    <div class="search-bar">
+        <input class="form-control" id="reportSearch" placeholder="🔍 搜索报告..." oninput="filterReports(this.value)">
+        <select class="form-control" id="statusFilter" onchange="filterReports(document.getElementById('reportSearch').value)">
+            <option value="all">全部状态</option>
+            <option value="PASS">PASS</option>
+            <option value="FAIL">FAIL</option>
+        </select>
+    </div>
+    <div id="reportList">
+        {% for r in reports %}
+        <a href="/reports/{{ r.id }}" style="text-decoration:none;color:inherit">
+            <div class="item-row report-item" data-status="{{ r.status }}" data-name="{{ r.name|lower }}">
+                <div class="status-dot {{ 'pass' if r.status == 'PASS' else 'fail' }}"></div>
+                <div class="item-info">
+                    <div class="item-title">{{ r.name }}</div>
+                    <div class="item-meta">{{ r.passed }}/{{ r.total }} 通过 · {{ r.elapsed }}s</div>
+                </div>
+                <span class="badge {{ 'badge-pass' if r.status == 'PASS' else 'badge-fail' }}">{{ r.status }}</span>
+            </div>
+        </a>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+function filterReports(query) {
+    const q = query.toLowerCase();
+    const status = document.getElementById('statusFilter').value;
+    document.querySelectorAll('.report-item').forEach(item => {
+        const nameMatch = item.dataset.name.includes(q);
+        const statusMatch = status === 'all' || item.dataset.status === status;
+        item.style.display = nameMatch && statusMatch ? 'flex' : 'none';
+    });
+}
+</script>
+{% endblock %}
