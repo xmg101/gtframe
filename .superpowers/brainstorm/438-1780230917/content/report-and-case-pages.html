@@ -1,0 +1,121 @@
+<h2>报告页面 & 用例管理页面</h2>
+<p class="subtitle">两个信息管理页面的详细设计</p>
+
+<div style="display:flex;gap:16px;flex-wrap:wrap">
+  <!-- 报告页面 -->
+  <div style="flex:1;min-width:280px">
+    <h3>📋 测试报告</h3>
+    <div style="background:#f5f5f5;border-radius:10px;padding:14px">
+      <p style="font-size:12px;color:#666;margin-top:0">历史报告列表，点击查看详情</p>
+
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <div style="flex:1;padding:6px 10px;background:white;border-radius:6px;font-size:11px;border:1px solid #ddd">🔍 搜索报告...</div>
+        <div style="padding:6px 10px;background:white;border-radius:6px;font-size:11px;border:1px solid #ddd">▼ 全部状态</div>
+      </div>
+
+      <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+        <div style="width:4px;height:32px;background:#27ae60;border-radius:2px"></div>
+        <div style="flex:1">
+          <div style="font-weight:bold;font-size:12px">main_flow</div>
+          <div style="font-size:10px;color:#999">2026-05-31 20:30 | 4/4 通过 | 4.6s</div>
+        </div>
+        <div style="display:flex;gap:4px">
+          <div style="background:#e8f8f0;color:#27ae60;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:bold">PASS</div>
+        </div>
+      </div>
+
+      <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+        <div style="width:4px;height:32px;background:#e74c3c;border-radius:2px"></div>
+        <div style="flex:1">
+          <div style="font-weight:bold;font-size:12px">login_test</div>
+          <div style="font-size:10px;color:#999">2026-05-31 20:15 | 3/4 通过 | 8.2s</div>
+        </div>
+        <div style="background:#fdecea;color:#e74c3c;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:bold">FAIL</div>
+      </div>
+
+      <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;display:flex;align-items:center;gap:10px">
+        <div style="width:4px;height:32px;background:#27ae60;border-radius:2px"></div>
+        <div style="flex:1">
+          <div style="font-weight:bold;font-size:12px">shop_flow</div>
+          <div style="font-size:10px;color:#999">2026-05-31 19:00 | 8/8 通过 | 12.3s</div>
+        </div>
+        <div style="background:#e8f8f0;color:#27ae60;padding:3px 10px;border-radius:12px;font-size:10px;font-weight:bold">PASS</div>
+      </div>
+
+      <div style="margin-top:10px;font-size:11px;color:#3498db;text-align:center">查看更多 →</div>
+    </div>
+    <p style="font-size:11px;color:#888;margin-top:6px">点击报告进入详情，可看每步截图、AI评语、设备日志</p>
+  </div>
+
+  <!-- 用例管理页面 -->
+  <div style="flex:1;min-width:280px">
+    <h3>📝 用例管理</h3>
+    <div style="background:#f5f5f5;border-radius:10px;padding:14px">
+      <div style="display:flex;gap:6px;margin-bottom:10px">
+        <div style="flex:1;padding:6px 10px;background:white;border-radius:6px;font-size:11px;border:1px solid #ddd">🔍 搜索用例...</div>
+        <div style="padding:6px 12px;background:#3498db;color:white;border-radius:6px;font-size:11px">＋ 新建</div>
+      </div>
+
+      <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <span style="font-weight:bold;font-size:12px">main_flow</span>
+            <span style="background:#e8f8f0;color:#27ae60;padding:2px 8px;border-radius:10px;font-size:9px;margin-left:6px">启用</span>
+          </div>
+          <div style="font-size:10px;color:#999">✏️ 🗑️</div>
+        </div>
+        <div style="font-size:10px;color:#999;margin-top:4px">4 步 | 最后运行: 5分钟前</div>
+        <div style="font-size:10px;color:#999">android_01 | 通过率 100%</div>
+      </div>
+
+      <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <span style="font-weight:bold;font-size:12px">login_test</span>
+            <span style="background:#e8f8f0;color:#27ae60;padding:2px 8px;border-radius:10px;font-size:9px;margin-left:6px">启用</span>
+          </div>
+          <div style="font-size:10px;color:#999">✏️ 🗑️</div>
+        </div>
+        <div style="font-size:10px;color:#999;margin-top:4px">4 步 | 最后运行: 15分钟前</div>
+        <div style="font-size:10px;color:#999">android_01 | 通过率 75%</div>
+      </div>
+
+      <div style="background:white;border-radius:8px;padding:10px;margin-bottom:6px;opacity:0.5">
+        <div style="display:flex;justify-content:space-between;align-items:center">
+          <div>
+            <span style="font-weight:bold;font-size:12px">old_shop_test</span>
+            <span style="background:#fdecea;color:#e74c3c;padding:2px 8px;border-radius:10px;font-size:9px;margin-left:6px">禁用</span>
+          </div>
+          <div style="font-size:10px;color:#999">✏️ 🗑️</div>
+        </div>
+        <div style="font-size:10px;color:#999;margin-top:4px">6 步 | 最后运行: 3天前</div>
+      </div>
+
+      <div style="margin-top:10px;font-size:11px;color:#999;text-align:center">共 12 个用例</div>
+    </div>
+    <p style="font-size:11px;color:#888;margin-top:6px">点击用例名查看 YAML 内容，支持编辑/启用/禁用/删除</p>
+  </div>
+</div>
+
+<hr style="margin:20px 0;border:none;border-top:1px solid #eee">
+
+<h3>设备管理页面</h3>
+<div style="background:#f5f5f5;border-radius:10px;padding:14px;max-width:500px">
+  <div style="display:flex;gap:8px;margin-bottom:10px">
+    <div style="flex:1;background:white;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px">
+      <div style="width:10px;height:10px;background:#27ae60;border-radius:5px"></div>
+      <div>
+        <div style="font-weight:bold;font-size:12px">android_01</div>
+        <div style="font-size:10px;color:#999">Android | Pixel 6 | 已连接</div>
+      </div>
+    </div>
+    <div style="background:white;border-radius:8px;padding:12px;display:flex;align-items:center;gap:10px;opacity:0.5">
+      <div style="width:10px;height:10px;background:#e74c3c;border-radius:5px"></div>
+      <div>
+        <div style="font-weight:bold;font-size:12px">ios_01</div>
+        <div style="font-size:10px;color:#999">iOS | iPhone 15 | 离线</div>
+      </div>
+    </div>
+  </div>
+  <div style="font-size:11px;color:#3498db">🔄 刷新设备列表</div>
+</div>

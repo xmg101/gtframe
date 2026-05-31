@@ -1,0 +1,88 @@
+<h2>选择你喜欢的 UI 布局风格</h2>
+<p class="subtitle">gtframe 可视化面板 — 3 种方案，点击选一个</p>
+
+<div class="cards">
+  <div class="card" data-choice="a" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>A. 侧边栏导航</h3>
+      <div style="background:#f0f0f0;border-radius:8px;padding:16px;margin:8px 0;font-size:13px;font-family:monospace">
+        <div style="display:flex;gap:8px;min-height:120px">
+          <div style="width:80px;background:#2c3e50;border-radius:6px;padding:8px;color:white">
+            <div style="font-size:10px;margin-bottom:8px">🏠 首页</div>
+            <div style="font-size:10px;margin-bottom:8px;opacity:0.7">▶ 运行</div>
+            <div style="font-size:10px;margin-bottom:8px;opacity:0.7">📊 报告</div>
+            <div style="font-size:10px;margin-bottom:8px;opacity:0.7">📝 用例</div>
+            <div style="font-size:10px;margin-bottom:8px;opacity:0.7">📱 设备</div>
+          </div>
+          <div style="flex:1;background:white;border-radius:6px;padding:8px;color:#333">
+            <div style="font-size:11px;font-weight:bold;margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:4px">仪表盘</div>
+            <div style="font-size:10px">📊 测试结果概览</div>
+            <div style="font-size:10px">⚡ 快速运行测试</div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#666">左侧导航栏常驻，右侧内容区切换。经典布局，功能完整。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="b" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>B. 顶部标签页</h3>
+      <div style="background:#f0f0f0;border-radius:8px;padding:16px;margin:8px 0;font-size:13px;font-family:monospace">
+        <div style="min-height:120px">
+          <div style="display:flex;gap:4px;margin-bottom:8px;background:white;border-radius:6px;padding:6px">
+            <div style="background:#3498db;color:white;padding:3px 10px;border-radius:12px;font-size:10px">首页</div>
+            <div style="padding:3px 10px;border-radius:12px;font-size:10px">运行</div>
+            <div style="padding:3px 10px;border-radius:12px;font-size:10px">报告</div>
+            <div style="padding:3px 10px;border-radius:12px;font-size:10px">用例</div>
+            <div style="padding:3px 10px;border-radius:12px;font-size:10px">设备</div>
+          </div>
+          <div style="background:white;border-radius:6px;padding:8px;color:#333;min-height:80px">
+            <div style="font-size:11px;font-weight:bold;margin-bottom:8px;border-bottom:1px solid #eee;padding-bottom:4px">首页</div>
+            <div style="font-size:10px">📊 测试结果概览</div>
+            <div style="font-size:10px">⚡ 快速运行测试</div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#666">顶部标签栏切换页面，类似浏览器标签页。简洁直观。</p>
+    </div>
+  </div>
+
+  <div class="card" data-choice="c" onclick="toggleSelect(this)">
+    <div class="card-body">
+      <h3>C. 卡片式仪表盘</h3>
+      <div style="background:#f0f0f0;border-radius:8px;padding:16px;margin:8px 0;font-size:13px;font-family:monospace">
+        <div style="min-height:120px">
+          <div style="display:flex;gap:4px;margin-bottom:8px">
+            <div style="background:#2c3e50;color:white;padding:4px 12px;border-radius:6px;font-size:10px">🏠</div>
+            <div style="background:white;color:#333;padding:4px 12px;border-radius:6px;font-size:10px">▶</div>
+            <div style="background:white;color:#333;padding:4px 12px;border-radius:6px;font-size:10px">📊</div>
+            <div style="background:white;color:#333;padding:4px 12px;border-radius:6px;font-size:10px">📝</div>
+            <div style="background:white;color:#333;padding:4px 12px;border-radius:6px;font-size:10px">📱</div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px">
+            <div style="background:white;border-radius:8px;padding:8px;flex:1;min-width:80px;color:#333;font-size:10px">
+              <div style="font-weight:bold">运行测试</div>
+              <div style="color:#999;margin-top:4px">选择设备...</div>
+            </div>
+            <div style="background:white;border-radius:8px;padding:8px;flex:1;min-width:80px;color:#333;font-size:10px">
+              <div style="font-weight:bold">最近报告</div>
+              <div style="color:#999;margin-top:4px">3 条记录</div>
+            </div>
+          </div>
+          <div style="display:flex;flex-wrap:wrap;gap:6px;margin-top:6px">
+            <div style="background:white;border-radius:8px;padding:8px;flex:1;min-width:80px;color:#333;font-size:10px">
+              <div style="font-weight:bold">设备状态</div>
+              <div style="color:#27ae60;margin-top:4px">● 1 已连接</div>
+            </div>
+            <div style="background:white;border-radius:8px;padding:8px;flex:1;min-width:80px;color:#333;font-size:10px">
+              <div style="font-weight:bold">通过率</div>
+              <div style="color:#27ae60;margin-top:4px">92%</div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p style="font-size:13px;color:#666">所有功能以卡片形式集中展示。信息密度高，一目了然。</p>
+    </div>
+  </div>
+</div>
