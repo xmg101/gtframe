@@ -12,6 +12,37 @@ from gtframe.vision.engine import VisionEngine
 
 
 def main():
+    import sys as _sys
+
+    if len(_sys.argv) >= 2 and _sys.argv[1] == "web":
+        _run_web()
+        return
+
+    _run_cli()
+
+
+def _run_web():
+    import uvicorn
+    from gtframe.web.app import app
+
+    parser = argparse.ArgumentParser(prog="gtframe web")
+    parser.add_argument("--port", type=int, default=8765, help="Web UI port (default: 8765)")
+    parser.add_argument("--config", help="Path to config YAML file")
+    args = parser.parse_args()
+
+    if args.config:
+        try:
+            Config.get().load(args.config)
+        except GTFrameError as e:
+            print(f"Config error: {e}", file=sys.stderr)
+            sys.exit(1)
+
+    print(f"🌐 gtframe Web UI starting at http://localhost:{args.port}")
+    print("   Press Ctrl+C to stop")
+    uvicorn.run(app, host="127.0.0.1", port=args.port, log_level="warning")
+
+
+def _run_cli():
     parser = argparse.ArgumentParser(
         prog="gtframe",
         description="Automated game testing framework",
@@ -83,9 +114,6 @@ def main():
 
     # Use first available device if --device not specified
     device_name = args.device or next(iter(devices))
-    if device_name not in device_pool.list_devices():
-        # Auto-discover doesn't register; register from discovery
-        pass
 
     try:
         vision = VisionEngine()
