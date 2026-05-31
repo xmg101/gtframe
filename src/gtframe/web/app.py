@@ -129,6 +129,12 @@ async def api_devices_scan():
     return {"devices": found}
 
 
+@app.get("/api/devices/diagnose")
+async def api_devices_diagnose():
+    pool, _, _ = _ensure_services()
+    return {"diagnoses": pool.diagnose_discovery()}
+
+
 @app.get("/api/cases")
 async def api_cases():
     return {"cases": _list_cases()}

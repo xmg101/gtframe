@@ -5,6 +5,7 @@
 
 <div style="margin-bottom:16px">
     <button class="btn btn-primary" onclick="scanDevices()">🔄 扫描设备</button>
+    <button class="btn btn-sm" style="margin-left:8px;background:#f0f0f0" onclick="diagnoseDevices()">🔍 检测环境</button>
 </div>
 
 <div id="deviceList" class="card-grid" style="grid-template-columns:repeat(auto-fit,minmax(280px,1fr))">
@@ -20,17 +21,60 @@
 </div>
 
 {% if not devices %}
-<p style="color:#999;font-size:14px;text-align:center;margin-top:40px">暂无已连接设备。请先连接设备后点击"扫描设备"。</p>
+<p style="color:#999;font-size:14px;text-align:center;margin-top:40px">暂无已连接设备。点"扫描设备"搜索，或点"检测环境"查看配置问题。</p>
 {% endif %}
+
+<!-- Diagnostic results panel -->
+<div id="diagnosePanel" style="display:none;margin-top:16px"></div>
 
 <script>
 async function scanDevices() {
     const btn = event.target;
     btn.disabled = true;
     btn.textContent = '⏳ 扫描中...';
-    const resp = await fetch('/api/devices/scan', {method: 'POST'});
-    const data = await resp.json();
-    location.reload();
+    try {
+        const resp = await fetch('/api/devices/scan', {method: 'POST'});
+        const data = await resp.json();
+        if (Object.keys(data.devices || {}).length === 0) {
+            alert('未发现设备。请点"检测环境"查看诊断信息。');
+        }
+        location.reload();
+    } catch(e) {
+        alert('扫描失败: ' + e.message);
+        btn.disabled = false;
+        btn.textContent = '🔄 扫描设备';
+    }
+}
+
+async function diagnoseDevices() {
+    const btn = event.target;
+    btn.disabled = true;
+    btn.textContent = '⏳ 诊断中...';
+    const panel = document.getElementById('diagnosePanel');
+    panel.style.display = 'block';
+    panel.innerHTML = '<div class="card"><p style="color:#999">诊断中...</p></div>';
+    try {
+        const resp = await fetch('/api/devices/diagnose');
+        const data = await resp.json();
+        const diagnoses = data.diagnoses || {};
+        let html = '<div class="card"><div class="section-title">🔍 环境诊断结果</div>';
+        for (const [platform, msg] of Object.entries(diagnoses)) {
+            const isOk = msg === 'ok';
+            const icon = isOk ? '✅' : '❌';
+            const color = isOk ? '#27ae60' : '#e74c3c';
+            html += '<div style="padding:8px 0;border-bottom:1px solid #f0f0f0">';
+            html += `<span style="color:${color};font-weight:bold">${icon} ${platform}</span>`;
+            if (!isOk) html += `<p style="font-size:13px;color:#666;margin-top:4px">${msg}</p>`;
+            html += '</div>';
+        }
+        html += '<p style="font-size:12px;color:#999;margin-top:8px">检测结果仅供参考，如果已安装 ADB 但未识别，请确认环境变量 PATH 配置正确。</p>';
+        html += '</div>';
+        panel.innerHTML = html;
+    } catch(e) {
+        panel.innerHTML = `<div class="card"><p style="color:#e74c3c">诊断失败: ${e.message}</p></div>`;
+    }
+    btn.disabled = false;
+    btn.textContent = '🔍 检测环境';
 }
 </script>
 {% endblock %}
