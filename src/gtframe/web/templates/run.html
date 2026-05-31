@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% block title %}运行测试 - gtframe{% endblock %}
+{% block content %}
+<h1 class="section-title">▶ 运行测试</h1>
+
+<div style="display:flex;gap:20px;flex-wrap:wrap">
+    <div style="flex:1;min-width:300px">
+        <div class="card">
+            <div class="form-group">
+                <label>📁 选择用例</label>
+                <input class="form-control" id="caseSearch" placeholder="🔍 搜索用例..." oninput="filterCases(this.value)">
+            </div>
+            <div id="caseList" style="max-height:240px;overflow-y:auto">
+                {% for c in cases %}
+                <label style="display:flex;align-items:center;gap:8px;padding:6px 8px;cursor:pointer;border-radius:6px;hover:background:#f5f5f5"
+                       onmouseover="this.style.background='#f5f5f5'" onmouseout="this.style.background=''">
+                    <input type="checkbox" class="case-checkbox" value="{{ c.name }}" onchange="updateRunButton()">
+                    <span style="font-size:14px">{{ c.name }}</span>
+                    <span style="font-size:11px;color:#999;margin-left:auto">{{ c.steps }} 步</span>
+                </label>
+                {% endfor %}
+            </div>
+        </div>
+    </div>
+    <div style="flex:1;min-width:200px">
+        <div class="card">
+            <div class="form-group">
+                <label>📱 选择设备</label>
+                <select class="form-control" id="deviceSelect">
+                    {% for d in devices %}
+                    <option value="{{ d }}">{{ d }}</option>
+                    {% endfor %}
+                </select>
+            </div>
+            <button class="btn btn-success" id="runBtn" onclick="startRun()" disabled style="width:100%;font-size:16px;padding:12px">▶ 运行</button>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-top:16px">
+    <div class="section-title">📜 实时日志</div>
+    <div class="log-panel" id="logPanel">
+        <div class="log-line" style="color:#666">等待运行...</div>
+    </div>
+</div>
+
+<script>
+const caseCheckboxes = document.querySelectorAll('.case-checkbox');
+const runBtn = document.getElementById('runBtn');
+const logPanel = document.getElementById('logPanel');
+const deviceSelect = document.getElementById('deviceSelect');
+let eventSource = null;
+
+function filterCases(query) {
+    const q = query.toLowerCase();
+    document.querySelectorAll('#caseList label').forEach(label => {
+        const text = label.textContent.toLowerCase();
+        label.style.display = text.includes(q) ? 'flex' : 'none';
+    });
+}
+
+function updateRunButton() {
+    const checked = document.querySelectorAll('.case-checkbox:checked');
+    runBtn.disabled = checked.length === 0;
+}
+
+function addLog(text, type) {
+    const div = document.createElement('div');
+    div.className = 'log-line';
+    if (type === 'pass') div.innerHTML = '<span class="step-pass">✓</span> ' + text;
+    else if (type === 'fail') div.innerHTML = '<span class="step-fail">✗</span> ' + text;
+    else if (type === 'info') div.innerHTML = '<span class="step-info">▶</span> ' + text;
+    else if (type === 'wait') div.innerHTML = '<span class="step-wait">⏳</span> ' + text;
+    else if (type === 'summary') div.innerHTML = '<span class="step-pass">━━━ ' + text + ' ━━━</span>';
+    else div.textContent = text;
+    logPanel.appendChild(div);
+    logPanel.scrollTop = logPanel.scrollHeight;
+}
+
+async function startRun() {
+    const checked = document.querySelectorAll('.case-checkbox:checked');
+    const cases = Array.from(checked).map(cb => cb.value);
+    const device = deviceSelect.value;
+
+    logPanel.innerHTML = '';
+    runBtn.disabled = true;
+    runBtn.textContent = '⏳ 运行中...';
+
+    const resp = await fetch('/api/run', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({cases, device})
+    });
+    const data = await resp.json();
+    const runId = data.run_id;
+
+    eventSource = new EventSource(`/api/run/${runId}/log`);
+    eventSource.onmessage = function(e) {
+        if (e.data === '[DONE]') {
+            eventSource.close();
+            runBtn.disabled = false;
+            runBtn.textContent = '▶ 运行';
+            return;
+        }
+        try {
+            const msg = JSON.parse(e.data);
+            if (msg.type === 'info') addLog(msg.msg, 'info');
+            else if (msg.type === 'pass') addLog(`[${msg.step}] ${msg.target || ''} (${msg.duration}s)`, 'pass');
+            else if (msg.type === 'fail') {
+                let text = `[${msg.step}] ${msg.target || ''}`;
+                if (msg.error) text += ` — ${msg.error}`;
+                addLog(text, 'fail');
+            }
+            else if (msg.type === 'summary') addLog(`${msg.passed}/${msg.total} 通过`, 'summary');
+            else if (msg.type === 'done') addLog(`全部完成: ${msg.passed}/${msg.total} 通过`, 'summary');
+            else if (msg.type === 'wait') addLog(msg.msg, 'wait');
+        } catch(e) {
+            addLog(e.data);
+        }
+    };
+}
+</script>
+{% endblock %}
